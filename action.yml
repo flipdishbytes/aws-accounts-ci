@@ -43,7 +43,9 @@ runs:
               Write-Output "ou_name is not set."
               exit 1
           }
-          
+
+          if ($workload_name -eq "de") { $workload_name="delivery-enablement" }
+
           $search_name = "$ou_name-$workload_name"
           
           $json_content = Get-Content -Path "aws-accounts.json" | ConvertFrom-Json
