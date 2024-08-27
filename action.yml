@@ -1,0 +1,64 @@
+name: 'AWS Accounts read'
+description: 'Reads AWs Accounts from S3 Bucket JSON file'
+inputs:
+      workload_name:
+        description: 'Name of the workload (will be used in DNS zone name)'
+        required: true
+      ou_name:
+        description: 'OU name'
+        required: true
+
+outputs:
+  accountId:
+    description: "AWS Account ID"
+    value: ${{ steps.account_id.outputs.accountId }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Assume AWS management account role
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::865076270365:role/github-ci-accounts-read-role
+        aws-region: eu-west-1
+        role-session-name: "GitHubActions-DeployLayerStack"
+        unset-current-credentials: true
+    
+    - name: Read AWS Accounts from S3 Bucket
+      run: |
+        rm -rf aws-accounts.json
+        aws s3 cp s3://flipdish-aws-governance-accounts/aws-accounts.json aws-accounts.json
+      shell: bash
+    
+    - name: Get account Id
+      id: account_id
+      run: |
+          $workload_name = $env:workload_name
+          $ou_name = $env:ou_name
+          if (-not $workload_name) {
+              Write-Output "workload_name is not set."
+              exit 1
+          }
+          if (-not $ou_name) {
+              Write-Output "ou_name is not set."
+              exit 1
+          }
+          
+          $search_name = "$ou_name-$workload_name"
+          
+          $json_content = Get-Content -Path "aws-accounts.json" | ConvertFrom-Json
+          
+          $account = $json_content | Where-Object { $_.Name -eq $search_name }
+
+          if ($account) {
+              Write-Output "The Id for '$search_name' account is: $($account.Id)"
+              $accountId = $account.Id
+              "accountId=$accountId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+              Write-Output "No account found with '$search_name' name."
+              exit 1
+          }
+      shell: pwsh
+      env:
+        workload_name: ${{ inputs.workload_name }}
+        ou_name: ${{ inputs.ou_name }}
