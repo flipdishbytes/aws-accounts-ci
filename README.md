@@ -52,10 +52,9 @@ jobs:
           workload_name: 'delivery-enablement'
           ou_name: 'ephemeral'
       
-      - name: Use AWS Account ID
-        run: |
-          echo "AWS Account ID:" $ACCOUNT_ID
-        shell: bash
-        env:
-          ACCOUNT_ID: ${{ steps.account_id.outputs.accountId }}
+      - name: Assume role using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ steps.account_id.outputs.accountId }}:role/github-ci-role 
+          aws-region: us-east-1
 ```
