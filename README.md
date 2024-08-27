@@ -2,9 +2,9 @@
 
 This custom GitHub Action were created to read AWS Account Id by using workload and ou. It allows you to use accound id in your workflows without hardcoding it in yml.
 
-# Github Action: Datadog CI `flipdishbytes/aws-accounts-ci@v1.0`
+# Github Action: AWS Account ID Read`flipdishbytes/aws-accounts-ci@v1.0`
 
-To use this Datadog CI action, add it to your pipeline workflow YAML file. Here is example.
+To use this action, add it to your pipeline workflow YAML file. Here is example.
 
 ### How it works?
 
