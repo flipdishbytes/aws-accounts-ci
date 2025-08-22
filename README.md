@@ -49,7 +49,7 @@ jobs:
         uses: flipdishbytes/aws-accounts-ci@v1.0
         continue-on-error: false
         with:
-          workload_name: 'delivery-enablement'
+          workload_name: 'platform'
           ou_name: 'ephemeral'
       
       - name: Assume role using OIDC
