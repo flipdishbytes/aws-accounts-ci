@@ -56,5 +56,5 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ steps.account_id.outputs.accountId }}:role/github-ci-role 
-          aws-region: us-east-1
+          aws-region: eu-west-1
 ```
