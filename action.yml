@@ -7,6 +7,10 @@ inputs:
       ou_name:
         description: 'OU name'
         required: true
+      cache_ttl_days:
+        description: 'How long to reuse a cached account ID before re-fetching from the API'
+        required: false
+        default: '30'
 
 outputs:
   accountId:
@@ -15,7 +19,30 @@ outputs:
 
 runs:
   using: "composite"
-  steps:    
+  steps:
+    - name: Compute cache key
+      id: cache_key
+      shell: bash
+      env:
+        OU_NAME: ${{ inputs.ou_name }}
+        WORKLOAD_NAME: ${{ inputs.workload_name }}
+        CACHE_TTL_DAYS: ${{ inputs.cache_ttl_days }}
+      run: |
+        # Sanitize inputs: lowercase + replace anything that isn't [a-z0-9] with '-'.
+        # Keeps cache keys and filenames safe even if callers pass odd values.
+        ou=$(echo "$OU_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
+        wl=$(echo "$WORKLOAD_NAME" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
+        bucket=$(( $(date -u +%s) / 86400 / CACHE_TTL_DAYS ))
+        echo "key=aws-acct-${ou}-${wl}-${bucket}" >> "$GITHUB_OUTPUT"
+        echo "path=${RUNNER_TEMP}/aws-acct-${ou}-${wl}.txt" >> "$GITHUB_OUTPUT"
+
+    - name: Restore account ID cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.cache_key.outputs.path }}
+        key: ${{ steps.cache_key.outputs.key }}
+
     - name: Get account Id
       id: account_id
       run: ${{ github.action_path }}/scripts/GetAWSAccountId.ps1
@@ -23,3 +50,5 @@ runs:
       env:
         workload_name: ${{ inputs.workload_name }}
         ou_name: ${{ inputs.ou_name }}
+        cache_path: ${{ steps.cache_key.outputs.path }}
+        cache_hit: ${{ steps.cache.outputs.cache-hit }}

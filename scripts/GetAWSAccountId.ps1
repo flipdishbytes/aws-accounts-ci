@@ -1,21 +1,41 @@
-$workload_name = $env:workload_name 
+$workload_name = $env:workload_name
 $ou_name = $env:ou_name
+$cache_path = $env:cache_path
+$cache_hit = $env:cache_hit
 
 if (-not $workload_name -or -not $ou_name) {
     Write-Output "workload_name and ou_name must be set."
     exit 1
 }
 
+# Short-circuit on cache hit: read the previously stored account ID and skip the API call.
+if ($cache_hit -eq 'true' -and $cache_path -and (Test-Path $cache_path)) {
+    $cachedAccountId = (Get-Content $cache_path -Raw).Trim()
+    if ($cachedAccountId) {
+        Write-Output "Cache hit: '$ou_name-$workload_name' account is: $cachedAccountId"
+        if ($env:GITHUB_OUTPUT) {
+            "accountId=$cachedAccountId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        }
+        exit 0
+    }
+    Write-Output "Cache file present but empty; falling through to API call."
+}
+
 $apiUrl = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("aHR0cHM6Ly9lMXp2cG51cDNkLmV4ZWN1dGUtYXBpLmV1LXdlc3QtMS5hbWF6b25hd3MuY29tL2F3cy1nb3Zlcm5hbmNlL2FjY291bnQtaWQ="))
 
 try {
     $response = Invoke-WebRequest -Uri $apiUrl -Method GET -Body @{ workload_name = $workload_name; ou_name = $ou_name } | ConvertFrom-Json
-    
+
     if ($response.accountId) {
         Write-Output "The Id for '$ou_name-$workload_name' account is: $($response.accountId)"
-        
+
         if ($env:GITHUB_OUTPUT) {
             "accountId=$($response.accountId)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        }
+
+        # Persist the value so actions/cache can save it in its post-step.
+        if ($cache_path) {
+            $response.accountId | Out-File -FilePath $cache_path -Encoding utf8 -NoNewline
         }
     }
     else {
